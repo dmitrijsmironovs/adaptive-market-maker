@@ -44,7 +44,35 @@ class OrderBook:
         book.setdefault(price, deque()).append(order) #add order to the appropriate price level
         self._index[order.order_id] = (order.side, price, order) #adds order to index dictionary for fast lookup by order_id
 
-
+    def match_market_order(self, order: Order) -> list[Trade]: #executes market order against order book, returns list of trades
+        trades: list[Trade] = [] #list of executed trades
+        remaining = order.quantity #still unfulfilled quantity of the market order
+        buying = order.side is Side.BUY #boolean indicating if the market order is a buy or sell
+        while remaining > 0: #if there is still quantity left to fill
+            book = self.asks if buying else self.bids #selects the opposite side of the book to match against
+            if not book: #if book is empty, no liquidity left to fill the market order
+                break
+            price = min(book) if buying else max(book) #gets the best price on the opposite side of the book
+            level = book[price] #gets deque of resting orders at that price level
+            while remaining > 0 and level: #consumes orders at that price level until either the market order is filled or there are no more resting orders
+                resting = level[0] #gets the first resting order in the deque
+                qty = min(remaining, resting.quantity) #determines trade quantity
+                resting.quantity -= qty #reduces resting order quantity by the filled amount
+                remaining -= qty #reduces market order remaining quantity by the filled amount
+                trades.append(Trade( #adds trade to the list of executed trades
+                    price=price,
+                    quantity=qty,
+                    buyer_id=order.trader_id if buying else resting.trader_id,
+                    seller_id=resting.trader_id if buying else order.trader_id,
+                    aggressor_side=order.side,
+                    timestamp=order.timestamp,
+                ))
+                if resting.quantity == 0: #if the resting order is fully filled, removes it from the deque and index
+                    level.popleft()
+                    self._index.pop(resting.order_id, None)
+            if not level: #if the price level is empty, removes it from the book
+                del book[price]
+        return trades
         
 
 

@@ -73,6 +73,9 @@ class OrderBook:
             if not level: #if the price level is empty, removes it from the book
                 del book[price]
         return trades
+    
+import logging
+logger = logging.getLogger(__name__)
         
 
 

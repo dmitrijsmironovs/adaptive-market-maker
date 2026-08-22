@@ -1,6 +1,9 @@
 from collections import deque #for orders at a price level
 from mm.models import Side, OrderType, Order, Trade 
 
+import logging
+logger = logging.getLogger(__name__)
+
 TICK = 0.01 #minimum price increment for the order book
 
 def round_to_tick(price: float, tick: float = TICK) -> float: #rounds price to nearest tick size, default is TICK
@@ -73,9 +76,33 @@ class OrderBook:
             if not level: #if the price level is empty, removes it from the book
                 del book[price]
         return trades
-    
-import logging
-logger = logging.getLogger(__name__)
-        
 
+    def cancel(self, order_id: int) -> bool: #cancels order by order_id, returns True if successful, False if order not found
+        entry = self._index.pop(order_id, None) #looks up order in index by order_id
+        if entry is None: #if order not found, return False
+            return False
+        side, price, order = entry #unpacks the entry tuple
+        book = self.bids if side is Side.BUY else self.asks #selects book based on order side
+        level = book.get(price) #gets the deque of orders at that price level
+        if level is None: #if price level not found, return False
+            return False
+        try: #removes order
+            level.remove(order)
+        except ValueError:
+            return False
+        if not level: #if price level is now empty, removes it from the book
+            del book[price]
+        return True
 
+    def depth_at(self, side: Side, price: float) -> int: #returns total quantity of orders at a given price level for the specified side
+        book = self.bids if side is Side.BUY else self.asks #selects book based on side
+        level = book.get(round_to_tick(price, self.tick)) #gets the deque of orders at that price level
+        return sum(o.quantity for o in level) if level else 0 #returns total quantity of orders at that price level, or 0 if no orders exist
+
+    def top_of_book(self): #returns the best bid and best ask prices and quantities as a tuple, or None if either side is empty
+        return {
+            "bid": self.best_bid(), #gets highest bid price, or None if no bids exist
+            "bid_size": self.depth_at(Side.BUY, self.best_bid()) if self.bids else 0, #gets total quantity of orders at the best bid price, or 0 if no bids exist
+            "ask": self.best_ask(), #gets lowest ask price, or None if no asks exist
+            "ask_size": self.depth_at(Side.SELL, self.best_ask()) if self.asks else 0 #gets total quantity of orders at the best ask price, or 0 if no asks exist
+        }

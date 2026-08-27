@@ -1,7 +1,7 @@
 import logging #to record warnings
 from typing import List, Dict, Set, Optional 
-from mm.models import Order, Trade, OrderType, Side, CrossingLimitOrder 
-from mm.order_book import OrderBook
+from mm.models import Order, Trade, OrderType, Side 
+from mm.order_book import OrderBook, CrossingLimitOrder
 
 logger = logging.getLogger(__name__)
 

@@ -1,23 +1,20 @@
-import numpy as np #for random
-import matplotlib.pyplot as plt #for plotting
+import numpy as np 
 
-#create a random number generator with seed 42
-rng = np.random.default_rng(42)
-price = 100.0 #initial price
-path = [price] #list storing price path at each time step
+class Market: #generates a seeded random walk of prices, with a given volatility regime
+    def __init__(self, initial_price=100.0, 
+                 n_steps=10_000,
+                 regime="normal", seed=0):
+        sigmas = {"low": 0.01, "normal": 0.03, "high": 0.08} #volatility regimes given as standard deviation of price shocks
+        self.sigma = sigmas[regime]
+        self.regime = regime
+        self.price = float(initial_price)
+        self.n_steps = n_steps
+        self.rng = np.random.default_rng(seed)
+        self.history = [self.price]
 
-#simulate price path for 1000 time steps
-for _ in range(1000): #_ is a throwaway variable since we don't need the loop index
-    price += rng.normal(0.0, 0.05) #normal distribution with mean 0 and std dev 0.05
-    path.append(price) #add new price to path
+    def draw_shock(self) -> float: #generates a random price shock from a normal distribution of given standard deviation
+        return float(self.rng.normal(0.0, self.sigma)) 
 
-#plot the price path
-plt.plot(path)
-plt.xlabel('Time Step')
-plt.ylabel('Price')
-plt.savefig("results/figures/day_2_price_path.png", dpi=150) #save the plot as a PNG file
-
-
-
-
-
+    def apply_shock(self, shock: float) -> None: #applies the price shock to the current price
+        self.price = max(0.01, self.price + shock) #price cannot go below 0.01 to avoid negative prices
+        self.history.append(self.price) #new price is appended to the history of prices
